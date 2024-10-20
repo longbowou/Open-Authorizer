@@ -1,0 +1,13 @@
+{
+  "name": "open-authorizer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "run": "node index.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.675.0",
+    "jsonwebtoken": "^9.0.2"
+  }
+}

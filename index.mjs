@@ -47,6 +47,7 @@ export const handler = async (event) => {
             email: existingUser.email.S,
             address: existingUser.address.S,
             imageUrl: existingUser.imageUrl.S,
+            password: existingUser.password.S,
             createdOn: existingUser.createdOn.S,
         };
 

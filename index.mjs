@@ -1,4 +1,4 @@
-import {DynamoDBClient, GetItemCommand} from "@aws-sdk/client-dynamodb";
+import {DynamoDBClient, ScanCommand} from "@aws-sdk/client-dynamodb";
 import jwt from 'jsonwebtoken';
 
 const region = 'us-east-2'
@@ -14,47 +14,49 @@ export const handler = async (event) => {
         const token = getTokenFromHeader(event);
 
         if (!token) {
+            console.log('Deny', event.methodArn, "!token")
             return generatePolicy('Deny', event.methodArn);
         }
 
-        try {
-            // Verify the token
-            const decoded = jwt.verify(token, JWT_SECRET);
-            console.log(decoded)
+        // Verify the token
+        const decoded = jwt.verify(token, JWT_SECRET);
+        console.log(decoded)
 
-            const getParams = {
-                TableName: DYNAMO_TABLE_NAME,
-                Key: {email: {S: decoded.email.S}},
-            };
-
-            const existingUser = await dynamoDbClient.send(new GetItemCommand(getParams));
-            console.log("existingUser", existingUser)
-            if (!existingUser.Item) {
-                return generatePolicy('Deny', event.methodArn);
+        const scanParams = {
+            TableName: DYNAMO_TABLE_NAME,
+            FilterExpression: '#n = :id',
+            ExpressionAttributeNames: {
+                '#n': 'id'
+            },
+            ExpressionAttributeValues: {
+                ':id': {S: decoded.id}
             }
+        };
 
-            const user = {
-                id: existingUser.Item.id.S,
-                name: existingUser.Item.name.S,
-                email: existingUser.Item.email.S,
-                address: existingUser.Item.address.S,
-                imageUrl: existingUser.Item.imageUrl.S,
-                createdOn: existingUser.Item.createdOn.S,
-            };
-
-            // Generate the policy to allow access
-            return generatePolicy('Allow', event.methodArn, user);
-        } catch (err) {
-            // Token is invalid
-            console.log(err)
+        const data = await dynamoDbClient.send(new ScanCommand(scanParams));
+        console.log(data)
+        if (data.Count === 0) {
+            console.log('Deny', event.methodArn, "ScanCommand")
             return generatePolicy('Deny', event.methodArn);
         }
-    } catch (error) {
-        console.error('Error authorization user:', error);
-        return {
-            statusCode: 500,
-            body: JSON.stringify({message: 'Internal Server Error Authorization'}),
+
+        const existingUser = data.Items[0]
+        const user = {
+            id: existingUser.id.S,
+            name: existingUser.name.S,
+            email: existingUser.email.S,
+            address: existingUser.address.S,
+            imageUrl: existingUser.imageUrl.S,
+            createdOn: existingUser.createdOn.S,
         };
+
+        // Generate the policy to allow access
+        console.log('Allow', event.methodArn, user)
+        return generatePolicy('Allow', event.methodArn, user);
+    } catch (err) {
+        // Token is invalid
+        console.log('Deny', event.methodArn, err)
+        return generatePolicy('Deny', event.methodArn);
     }
 };
 
@@ -77,6 +79,7 @@ function getTokenFromHeader(event) {
 
 // Helper function to generate an IAM policy
 function generatePolicy(effect, resource, user) {
+    console.log(effect, resource, user)
     return {
         principalId: user ? user.id : 'anonymous',  // principalId can be set to the user's ID from the token
         policyDocument: {

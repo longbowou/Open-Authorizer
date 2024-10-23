@@ -1,11 +1,11 @@
 import {DynamoDBClient, ScanCommand} from "@aws-sdk/client-dynamodb";
 import jwt from 'jsonwebtoken';
 
-const region = 'us-east-2'
+const region = process.env.AWS_REGION;
 
 const dynamoDbClient = new DynamoDBClient({region});
 
-const DYNAMO_TABLE_NAME = 'ProjectOpen';
+const DYNAMO_TABLE_NAME = process.env.DYNAMO_TABLE_NAME;
 const JWT_SECRET = process.env.JWT_SECRET;
 
 export const handler = async (event) => {
